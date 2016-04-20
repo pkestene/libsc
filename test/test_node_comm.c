@@ -38,12 +38,18 @@ test_shmem (int count, sc_MPI_Comm comm, sc_shmem_type_t type)
   int                 i, p, size, mpiret, check;
   long int           *myval, *recv_self, *recv_shmem, *scan_self, *scan_shmem,
                      *copy_shmem;
+  sc_MPI_Comm         intranode, internode;
 
   sc_shmem_set_type (comm, type);
 
   mpiret = sc_MPI_Comm_size (comm, &size);
   SC_CHECK_MPI (mpiret);
 
+  sc_mpi_comm_get_node_comms (comm,
+			      0,
+			      &intranode,
+			      &internode);
+  
   myval = SC_ALLOC (long int, count);
   for (i = 0; i < count; i++) {
     myval[i] = random ();
@@ -65,36 +71,42 @@ test_shmem (int count, sc_MPI_Comm comm, sc_shmem_type_t type)
     }
   }
 
-  recv_shmem = SC_SHMEM_ALLOC (long int, (size_t) count * size, comm);
+  recv_shmem = SC_SHMEM_ALLOC (long int, (size_t) count * size, comm, intranode, internode);
   sc_shmem_allgather (myval, count, sc_MPI_LONG,
-                      recv_shmem, count, sc_MPI_LONG, comm);
+                      recv_shmem, count, sc_MPI_LONG, comm,
+		      intranode, internode);
   check = memcmp (recv_self, recv_shmem, count * sizeof (long int) * size);
   if (check) {
     SC_GLOBAL_LERROR ("sc_shmem_allgather mismatch\n");
     return 1;
   }
 
-  copy_shmem = SC_SHMEM_ALLOC (long int, (size_t) count * size, comm);
+  copy_shmem = SC_SHMEM_ALLOC (long int, (size_t) count * size, comm, intranode, internode);
   sc_shmem_memcpy (copy_shmem, recv_shmem,
-                   (size_t) count * sizeof (long int) * size, comm);
+                   (size_t) count * sizeof (long int) * size, comm,
+		   intranode, internode);
   check = memcmp (recv_shmem, copy_shmem, count * sizeof (long int) * size);
   if (check) {
     SC_GLOBAL_LERROR ("sc_shmem_copy mismatch\n");
     return 1;
   }
-  SC_SHMEM_FREE (copy_shmem, comm);
-  SC_SHMEM_FREE (recv_shmem, comm);
+  SC_SHMEM_FREE (copy_shmem, comm, intranode, internode);
+  SC_SHMEM_FREE (recv_shmem, comm, intranode, internode);
 
-  scan_shmem = SC_SHMEM_ALLOC (long int, (size_t) count * (size + 1), comm);
-  sc_shmem_prefix (myval, scan_shmem, count, sc_MPI_LONG, sc_MPI_SUM, comm);
+  scan_shmem = SC_SHMEM_ALLOC (long int, (size_t) count * (size + 1), comm, intranode, internode);
+  sc_shmem_prefix (myval, scan_shmem, count, sc_MPI_LONG, sc_MPI_SUM, comm,
+		   intranode, internode);
   check =
     memcmp (scan_self, scan_shmem, count * sizeof (long int) * (size + 1));
   if (check) {
     SC_GLOBAL_LERROR ("sc_shmem_prefix mismatch\n");
     return 2;
   }
-  SC_SHMEM_FREE (scan_shmem, comm);
+  SC_SHMEM_FREE (scan_shmem, comm, intranode, internode);
 
+  sc_MPI_Comm_free(&intranode);
+  sc_MPI_Comm_free(&internode);
+  
   SC_FREE (scan_self);
   SC_FREE (recv_self);
   SC_FREE (myval);

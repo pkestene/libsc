@@ -1088,8 +1088,7 @@ sc_init (sc_MPI_Comm mpicomm,
     MPI_Comm            intranode, internode;
 
     /* compute the node comms by default */
-    sc_mpi_comm_attach_node_comms (mpicomm, 0);
-    sc_mpi_comm_get_node_comms (mpicomm, &intranode, &internode);
+    sc_mpi_comm_get_node_comms (mpicomm, 0, &intranode, &internode);
     if (intranode == MPI_COMM_NULL) {
       SC_GLOBAL_STATISTICS ("No shared memory node communicators\n");
     }
@@ -1102,6 +1101,10 @@ sc_init (sc_MPI_Comm mpicomm,
       SC_GLOBAL_STATISTICSF ("Shared memory node communicator size: %d\n",
                              intrasize);
     }
+    mpiret = MPI_Comm_free(&intranode);
+    SC_CHECK_MPI (mpiret);
+    mpiret = MPI_Comm_free(&internode);
+    SC_CHECK_MPI (mpiret);
   }
 #endif
 }

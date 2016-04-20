@@ -81,13 +81,16 @@ sc_shmem_type_t     sc_shmem_get_type (sc_MPI_Comm comm);
  * \param[in] elem_size       the size of each element in the array
  * \param[in] elem_count      the number of elements in the array
  * \param[in] comm            the mpi communicator
+ * \param[in] intranode       the intranode mpi communicator
+ * \param[in] internode       the internode mpi communicator
  *
  * \return a shared memory array
  * */
 void               *sc_shmem_malloc (int package, size_t elem_size,
-                                     size_t elem_count, sc_MPI_Comm comm);
+                                     size_t elem_count, sc_MPI_Comm comm,
+				     sc_MPI_Comm intranode, sc_MPI_Comm internode);
 
-#define SC_SHMEM_ALLOC(t,e,c) (t *) sc_shmem_malloc(sc_package_id,sizeof(t),e,c)
+#define SC_SHMEM_ALLOC(t,e,c,intra,inter) (t *) sc_shmem_malloc(sc_package_id,sizeof(t),e,c,intra,inter)
 
 /** Destroy a shmem array created with sc_shmem_alloc()
  *
@@ -97,26 +100,31 @@ void               *sc_shmem_malloc (int package, size_t elem_size,
  *
  * */
 void                sc_shmem_free (int package, void *array,
-                                   sc_MPI_Comm comm);
+                                   sc_MPI_Comm comm,
+				   sc_MPI_Comm intranode, sc_MPI_Comm internode);
 
-#define SC_SHMEM_FREE(a,c) sc_shmem_free (sc_package_id,a,c)
+#define SC_SHMEM_FREE(a,c,intra,inter) sc_shmem_free (sc_package_id,a,c,intra,inter)
 
 /** Start a write window for a shared array.
  *
  * \param[in] array           array that will be changed.
  * \param[in] comm            the mpi communicator
+ * \param[in] intranode       the intranode mpi communicator
+ * \param[in] internode       the internode mpi communicator
  *
  * \return 1 if I have write access, 0 if my proc should not change the
  * array.
  */
-int                 sc_shmem_write_start (void *array, sc_MPI_Comm comm);
+int                 sc_shmem_write_start (void *array, sc_MPI_Comm comm,
+					  sc_MPI_Comm intranode, sc_MPI_Comm internode);
 
 /** End a write window for a shared array.
  *
  * \param[in] array           array that has changed
  * \param[in] comm            the mpi communicator
  */
-void                sc_shmem_write_end (void *array, sc_MPI_Comm comm);
+void                sc_shmem_write_end (void *array, sc_MPI_Comm comm,
+					sc_MPI_Comm intranode, sc_MPI_Comm internode);
 
 /** Copy a shmem array.
  *
@@ -124,9 +132,12 @@ void                sc_shmem_write_end (void *array, sc_MPI_Comm comm);
  * \param[in]   srcarray      array to write from
  * \param[in]   bytes         number of bytes to write
  * \param[in]   comm          the mpi communicator
+ * \param[in] intranode       the intranode mpi communicator
+ * \param[in] internode       the internode mpi communicator
  */
 void                sc_shmem_memcpy (void *destarray, void *srcarray,
-                                     size_t bytes, sc_MPI_Comm comm);
+                                     size_t bytes, sc_MPI_Comm comm,
+				     sc_MPI_Comm intranode, sc_MPI_Comm internode);
 
 /** Fill a shmem array with an allgather.
  *
@@ -137,12 +148,15 @@ void                sc_shmem_memcpy (void *destarray, void *srcarray,
  * \param[in] recvcount       the number of items to allgather
  * \param[in] recvtype        the type of items to allgather
  * \param[in] comm            the mpi communicator
+ * \param[in] intranode       the intranode mpi communicator
+ * \param[in] internode       the internode mpi communicator
  */
 void                sc_shmem_allgather (void *sendbuf, int sendcount,
                                         sc_MPI_Datatype sendtype,
                                         void *recvbuf, int recvcount,
                                         sc_MPI_Datatype recvtype,
-                                        sc_MPI_Comm comm);
+                                        sc_MPI_Comm comm,
+					sc_MPI_Comm intranode, sc_MPI_Comm internode);
 
 /** Fill a shmem array with an allgather of the prefix op over all processes.
  *
@@ -159,10 +173,13 @@ void                sc_shmem_allgather (void *sendbuf, int sendcount,
  * \param[in] type            the type of items to allgather
  * \param[in] op              the operation to prefix (e.g., sc_MPI_SUM)
  * \param[in] comm            the mpi communicator
+ * \param[in] intranode       the intranode mpi communicator
+ * \param[in] internode       the internode mpi communicator
  */
 void                sc_shmem_prefix (void *sendbuf, void *recvbuf,
                                      int count, sc_MPI_Datatype type,
-                                     sc_MPI_Op op, sc_MPI_Comm comm);
+                                     sc_MPI_Op op, sc_MPI_Comm comm,
+				     sc_MPI_Comm intranode, sc_MPI_Comm internode);
 SC_EXTERN_C_END;
 
 #endif /* SC_SHMEM_H */

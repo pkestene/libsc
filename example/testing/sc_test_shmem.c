@@ -115,23 +115,36 @@ test_shmem_create_data_array (sc_shmem_type_t type, int mpirank, int mpisize)
   data_t              data;
   data_t             *data_array;
   int                 i;
+  sc_MPI_Comm         intranode = sc_MPI_COMM_NULL,
+    internode = sc_MPI_COMM_NULL;
 
   data.rank = mpirank;
   test_shmem_fill_data (&data);
 
   sc_shmem_set_type (sc_MPI_COMM_WORLD, type);
 
-  data_array = SC_SHMEM_ALLOC (data_t, mpisize, sc_MPI_COMM_WORLD);
+  sc_mpi_comm_get_node_comms (sc_MPI_COMM_WORLD,
+			      0,
+			      &intranode,
+			      &internode);
+  
+  
+  data_array = SC_SHMEM_ALLOC (data_t, mpisize, sc_MPI_COMM_WORLD, intranode, internode);
   SC_CHECK_ABORT (data_array != NULL, "Allocation failed");
 
   sc_shmem_allgather (&data, sizeof (data_t), sc_MPI_BYTE, data_array,
-                      sizeof (data_t), sc_MPI_BYTE, sc_MPI_COMM_WORLD);
+                      sizeof (data_t), sc_MPI_BYTE, sc_MPI_COMM_WORLD,
+		      intranode, internode);
   /* check whether creation worked */
   for (i = 0; i < mpisize; i++) {
     SC_CHECK_ABORTF (test_shmem_correct_data (&data_array[i], i),
                      "Error in shmem_allgather. Array entry %i is not correct.",
                      i);
   }
+
+  sc_MPI_Comm_free(&intranode);
+  sc_MPI_Comm_free(&internode);
+
   return data_array;
 }
 
@@ -146,6 +159,7 @@ test_shmem_allgather (sc_shmem_type_t type)
   data_t             *data_array;
   int                 mpirank, mpisize, mpiret;
   int                 i;
+  sc_MPI_Comm         intranode, internode;
 
   SC_GLOBAL_ESSENTIALF ("Testing allgather with type %s.\n",
                         sc_shmem_type_to_string[type]);
@@ -154,6 +168,11 @@ test_shmem_allgather (sc_shmem_type_t type)
   mpiret = sc_MPI_Comm_rank (sc_MPI_COMM_WORLD, &mpirank);
   SC_CHECK_MPI (mpiret);
 
+  sc_mpi_comm_get_node_comms (sc_MPI_COMM_WORLD,
+			      0,
+			      &intranode,
+			      &internode);
+
   data_array = test_shmem_create_data_array (type, mpirank, mpisize);
 
   for (i = 0; i < mpisize; i++) {
@@ -161,7 +180,10 @@ test_shmem_allgather (sc_shmem_type_t type)
                      "Error in shmem_allgather. Array entry %i is not correct.",
                      i);
   }
-  SC_SHMEM_FREE (data_array, sc_MPI_COMM_WORLD);
+  SC_SHMEM_FREE (data_array, sc_MPI_COMM_WORLD, intranode, internode);
+
+  sc_MPI_Comm_free(&intranode);
+  sc_MPI_Comm_free(&internode);
 
   SC_GLOBAL_ESSENTIALF ("Testing type %s succesful.\n",
                         sc_shmem_type_to_string[type]);
@@ -176,7 +198,9 @@ test_shmem_copy (sc_shmem_type_t type)
   data_t             *data_array, *copy_array;
   int                 mpirank, mpisize, mpiret;
   int                 i;
-
+  sc_MPI_Comm         intranode = sc_MPI_COMM_NULL,
+    internode = sc_MPI_COMM_NULL;
+  
   SC_GLOBAL_ESSENTIALF ("Testing copy with type %s.\n",
                         sc_shmem_type_to_string[type]);
   mpiret = sc_MPI_Comm_size (sc_MPI_COMM_WORLD, &mpisize);
@@ -184,11 +208,17 @@ test_shmem_copy (sc_shmem_type_t type)
   mpiret = sc_MPI_Comm_rank (sc_MPI_COMM_WORLD, &mpirank);
   SC_CHECK_MPI (mpiret);
 
+  sc_mpi_comm_get_node_comms (sc_MPI_COMM_WORLD,
+			      0,
+			      &intranode,
+			      &internode);
+  
   data_array = test_shmem_create_data_array (type, mpirank, mpisize);
-  copy_array = SC_SHMEM_ALLOC (data_t, mpisize, sc_MPI_COMM_WORLD);
+  copy_array = SC_SHMEM_ALLOC (data_t, mpisize, sc_MPI_COMM_WORLD, intranode, internode);
 
   sc_shmem_memcpy ((void *) copy_array, (void *) data_array,
-                   mpisize * sizeof (data_t), sc_MPI_COMM_WORLD);
+                   mpisize * sizeof (data_t), sc_MPI_COMM_WORLD,
+		   intranode, internode);
   /* Check whether the copy worked */
   for (i = 0; i < mpisize; i++) {
     SC_CHECK_ABORTF (!memcmp
@@ -197,8 +227,11 @@ test_shmem_copy (sc_shmem_type_t type)
                      i);
   }
 
-  SC_SHMEM_FREE (data_array, sc_MPI_COMM_WORLD);
-  SC_SHMEM_FREE (copy_array, sc_MPI_COMM_WORLD);
+  SC_SHMEM_FREE (data_array, sc_MPI_COMM_WORLD, intranode, internode);
+  SC_SHMEM_FREE (copy_array, sc_MPI_COMM_WORLD, intranode, internode);
+
+  sc_MPI_Comm_free(&intranode);
+  sc_MPI_Comm_free(&internode);
 
   SC_GLOBAL_ESSENTIALF ("Testing type %s succesful.\n",
                         sc_shmem_type_to_string[type]);
@@ -210,6 +243,8 @@ test_shmem_write (sc_shmem_type_t type)
   data_t             *data_array;
   int                 mpirank, mpisize, mpiret;
   int                 i;
+  sc_MPI_Comm         intranode = sc_MPI_COMM_NULL,
+    internode = sc_MPI_COMM_NULL;
 
   SC_GLOBAL_ESSENTIALF ("Testing shmem_write with type %s.\n",
                         sc_shmem_type_to_string[type]);
@@ -218,16 +253,21 @@ test_shmem_write (sc_shmem_type_t type)
   mpiret = sc_MPI_Comm_rank (sc_MPI_COMM_WORLD, &mpirank);
   SC_CHECK_MPI (mpiret);
 
-  data_array = SC_SHMEM_ALLOC (data_t, mpisize, sc_MPI_COMM_WORLD);
+  sc_mpi_comm_get_node_comms (sc_MPI_COMM_WORLD,
+			      0,
+			      &intranode,
+			      &internode);
+
+  data_array = SC_SHMEM_ALLOC (data_t, mpisize, sc_MPI_COMM_WORLD, intranode, internode);
   /* The process that first gets write access to the array writes the data */
-  if (sc_shmem_write_start (data_array, sc_MPI_COMM_WORLD)) {
+  if (sc_shmem_write_start (data_array, sc_MPI_COMM_WORLD, intranode, internode)) {
     for (i = 0; i < mpisize; i++) {
       data_array[i].rank = i;
       test_shmem_fill_data (&data_array[i]);
     }
   }
 
-  sc_shmem_write_end (data_array, sc_MPI_COMM_WORLD);
+  sc_shmem_write_end (data_array, sc_MPI_COMM_WORLD, intranode, internode);
   mpiret = sc_MPI_Barrier (sc_MPI_COMM_WORLD);
   SC_CHECK_MPI (mpiret);
 
@@ -238,7 +278,11 @@ test_shmem_write (sc_shmem_type_t type)
                      i);
   }
 
-  SC_SHMEM_FREE (data_array, sc_MPI_COMM_WORLD);
+  SC_SHMEM_FREE (data_array, sc_MPI_COMM_WORLD, intranode, internode);
+
+  sc_MPI_Comm_free(&intranode);
+  sc_MPI_Comm_free(&internode);
+
   SC_GLOBAL_ESSENTIALF ("Testing type %s succesful.\n",
                         sc_shmem_type_to_string[type]);
 }
@@ -249,6 +293,8 @@ test_shmem_prefix (sc_shmem_type_t type)
   int                *data_array;
   int                 mpirank, mpisize, mpiret;
   int                 i;
+  sc_MPI_Comm         intranode = sc_MPI_COMM_NULL,
+    internode = sc_MPI_COMM_NULL;
 
   SC_GLOBAL_ESSENTIALF ("Testing prefix with type %s.\n",
                         sc_shmem_type_to_string[type]);
@@ -257,10 +303,15 @@ test_shmem_prefix (sc_shmem_type_t type)
   mpiret = sc_MPI_Comm_rank (sc_MPI_COMM_WORLD, &mpirank);
   SC_CHECK_MPI (mpiret);
 
-  data_array = SC_SHMEM_ALLOC (int, mpisize + 1, sc_MPI_COMM_WORLD);
+  sc_mpi_comm_get_node_comms (sc_MPI_COMM_WORLD,
+			      0,
+			      &intranode,
+			      &internode);
+
+  data_array = SC_SHMEM_ALLOC (int, mpisize + 1, sc_MPI_COMM_WORLD, intranode, internode);
 
   sc_shmem_prefix (&mpirank, data_array, 1, sc_MPI_INT, sc_MPI_SUM,
-                   sc_MPI_COMM_WORLD);
+                   sc_MPI_COMM_WORLD, intranode, internode);
 
   for (i = 0; i <= mpisize; i++) {
     SC_CHECK_ABORTF (data_array[i] == i * (i - 1) / 2,
@@ -268,7 +319,11 @@ test_shmem_prefix (sc_shmem_type_t type)
                      "Array entry at %i is not correct.\n", i);
   }
 
-  SC_SHMEM_FREE (data_array, sc_MPI_COMM_WORLD);
+  SC_SHMEM_FREE (data_array, sc_MPI_COMM_WORLD, intranode, internode);
+
+  sc_MPI_Comm_free(&intranode);
+  sc_MPI_Comm_free(&internode);
+
   SC_GLOBAL_ESSENTIALF ("Testing type %s succesful.\n",
                         sc_shmem_type_to_string[type]);
 }

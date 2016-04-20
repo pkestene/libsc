@@ -372,28 +372,18 @@ int                 sc_MPI_Init_thread (int *argc, char ***argv,
 size_t              sc_mpi_sizeof (sc_MPI_Datatype t);
 
 /** Compute ``sc_intranode_comm'' and ``sc_internode_comm''
- * communicators and attach them to the current communicator.  This split
- * takes \a processes_per_node passed by the user at face value: there is no
- * hardware checking to see if this is the true affinity.
+ * communicators. May return sc_MPI_COMM_NULL.
  *
- * \param [in/out] comm                 MPI communicator
- * \param [in]     processes_per_node   the size of the intranode
+ * \param[in] comm            Super communicator
+ * \param[in]                 processes_per_node   the size of the intranode
  *                                      communicators. if < 1,
  *                                      sc will try to determine the correct
  *                                      shared memory communicators.
- */
-
-void                sc_mpi_comm_attach_node_comms (sc_MPI_Comm comm,
-                                                   int processes_per_node);
-
-/** Get the communicators computed in sc_mpi_comm_attach_node_comms() if they
- * exist; return sc_MPI_COMM_NULL otherwise.
- *
- * \param[in] comm            Super communicator
  * \param[out] intranode      intranode communicator
  * \param[out] internode      internode communicator
  */
 void                sc_mpi_comm_get_node_comms (sc_MPI_Comm comm,
+						int processes_per_node,
                                                 sc_MPI_Comm * intranode,
                                                 sc_MPI_Comm * internode);
 
