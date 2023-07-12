@@ -3,7 +3,7 @@ include(GNUInstallDirs)
 
 option(mpi "use MPI library" off)
 option(openmp "use OpenMP" off)
-option(zlib "build ZLIB" on)
+option(zlib "build ZLIB" off)
 option(BUILD_TESTING "build libsc self-tests" on)
 option(BUILD_SHARED_LIBS "build shared libsc")
 
